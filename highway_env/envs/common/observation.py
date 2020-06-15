@@ -338,7 +338,7 @@ class SimplifiedKinematicsObservation(ObservationType):
         self.features_range = features_range
         if features_range is None:
             side_lanes = self.env.road.network.all_side_lanes(self.env.vehicle.lane_index)
-            self.features_range = {{
+            self.features_range = {
                 "lane_index": [0, len(side_lanes)],
                 "x": [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX],
                 "vx": [-2*MDPVehicle.SPEED_MAX, 2*MDPVehicle.SPEED_MAX]
