@@ -349,7 +349,7 @@ class SimplifiedKinematicsObservation(ObservationType):
         self.clip = clip
 
     def space(self) -> spaces.Space:
-        return spaces.Box(shape=(3+2*self.lanes_count, len(self.features)), low=-1, high=1, dtype=np.float32)
+        return spaces.Box(shape=(3+2*self.lanes_count,2), low=-1, high=1, dtype=np.float32)
 
     def normalize_obs(self, observation: np.ndarray) -> np.ndarray:
         """
