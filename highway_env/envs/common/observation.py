@@ -314,6 +314,110 @@ class AttributesObservation(ObservationType):
         }
 
 
+class SimplifiedKinematicsObservation(ObservationType):
+    """
+        Observe the kinematics of nearby vehicles.
+    """
+
+    def __init__(self, env: 'AbstractEnv',
+                 features_range: Dict[str, List[float]] = None,
+                 lanes_count: int = 1,
+                 absolute: bool = False,
+                 normalize: bool = True,
+                 clip: bool = True,
+                 **kwargs: dict) -> None:
+        """
+        :param env: The environment to observe
+        :param features: Names of features used in the observation
+        :param lanes_count: Number of observed vehicles
+        :param absolute: Use absolute coordinates
+        :param normalize: Should the observation be normalized
+        :param clip: Should the value be clipped in the desired range
+        """
+        self.env = env
+        self.features_range = features_range
+        if features_range is None:
+            side_lanes = self.env.road.network.all_side_lanes(self.env.vehicle.lane_index)
+            self.features_range = {{
+                "lane_index": [0, len(side_lanes)],
+                "x": [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX],
+                "vx": [-2*MDPVehicle.SPEED_MAX, 2*MDPVehicle.SPEED_MAX]
+            }
+        self.lanes_count = lanes_count
+        self.absolute = asolute
+        self.normalize = normalize
+        self.clip = clip
+
+    def space(self) -> spaces.Space:
+        return spaces.Box(shape=(3+2*self.lanes_count, len(self.features)), low=-1, high=1, dtype=np.float32)
+
+    def normalize_obs(self, observation: np.nd_array) -> np.nd_array:
+        """
+            Normalize the observation values.
+        :param nd_array observation: observation data
+        """
+        observation[0,0] = np.map( observation[0,0], self.features_range['lanes'], [0,1])
+        observation[1:,0] = np.map( observation[1:,0], self.features_range['x'], [-1,1])
+        observation[:,1] = np.map( observation[:,1], self.features_range['vx'], [-1,1])
+        observation = np.clip(observation, -1, 1)
+        return observation
+
+    def observe(self) -> np.ndarray:
+
+        _from, _to, ego_lane_id = self.env.vehicle.target_lane_index
+        right_lanes_id = []
+        left_lanes_id = []
+        for i in range(self.lanes_count):
+            right_lanes_id.append(_id + i)
+            left_lanes_id.append(_id - i)
+        right_to_left_lanes_id = reversed(right_lanes).append(ego_lanes_id).extend(left_lanes)
+        lanes_id = dict()
+        for i,lane in enumerate(right_to_left_lanes_id):
+            lanes_id[lane] = 2*i+1
+
+        
+        # Add ego-vehicle
+        ego_df = pd.DataFrame.from_records([self.env.vehicle.to_dict()])[['vx', 'lane_index']]
+
+        # Add nearby traffic
+        close_vehicles = self.env.road.close_vehicles_to(self.env.vehicle,
+                                                         self.env.PERCEPTION_DISTANCE,
+                                                         count=None,
+                                                         see_behind=True)
+        exo_df = pd.DataFrame()
+        if close_vehicles:
+            origin = self.env.vehicle
+            exo_df = exo_df.append(pd.DataFrame.from_records(
+                [v.to_dict(origin, observe_intentions=self.observe_intentions)
+                 for v in close_vehicles[-self.vehicles_count + 1:]])[['x','vx','lane_index']],
+                           ignore_index=True)
+
+        observation = np.ones((3+2*self.lanes_count,2))
+        observation[1::2,0] = self.features_range['x'][0]
+        observation[1::2,1] = self.features_range['vx'][0]
+        observation[2::2,0] = self.features_range['x'][1]
+        observation[2::2,1] = self.features_range['vx'][1]
+
+        observation[0,0] = ego['lane_index']
+        observation[0,1] = ego['vx']
+        for exo in exo_df:
+            lane = exo_df['lane_index']
+            if exo_df['x']<0 and exo_df['x']>observation[lanes_id[lane]][0]:
+                observation[lanes_id[lane]+1,0] = exo_df['x']
+                observation[lanes_id[lane]+1,1] = exo_df['vx']
+            elif exo_df['x']>0 and exo_df['x']<observation[lanes_id[lane]+1][0]:
+                observation[lanes_id[lane],0] = exo_df['x']
+                observation[lanes_id[lane],1] = exo_df['vx']
+
+        # Normalize and clip
+        if self.normalize:
+            observation = self.normalize_obs(observation)
+                
+        return observation.flatten()
+
+
+
+
 def observation_factory(env: 'AbstractEnv', config: dict) -> ObservationType:
     if config["type"] == "TimeToCollision":
         return TimeToCollisionObservation(env, **config)
@@ -327,5 +431,7 @@ def observation_factory(env: 'AbstractEnv', config: dict) -> ObservationType:
         return GrayscaleObservation(env, config)
     elif config["type"] == "AttributesObservation":
         return AttributesObservation(env, **config)
+    elif config["type"] == "SimplifiedKinematics":
+        return SimplifiedKinematicsObservation(env, **config)
     else:
         raise ValueError("Unknown observation type")
