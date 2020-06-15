@@ -391,7 +391,7 @@ class SimplifiedKinematicsObservation(ObservationType):
         if close_vehicles:
             origin = self.env.vehicle
             exo_df = exo_df.append(pd.DataFrame.from_records(
-                [v.to_dict(origin, observe_intentions=self.observe_intentions)
+                [v.to_dict(origin, observe_intentions=False)
                  for v in close_vehicles])[['x','vx','lane_index']],
                            ignore_index=True)
 
