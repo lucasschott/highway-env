@@ -344,7 +344,7 @@ class SimplifiedKinematicsObservation(ObservationType):
                 "vx": [-2*MDPVehicle.SPEED_MAX, 2*MDPVehicle.SPEED_MAX]
             }
         self.lanes_count = lanes_count
-        self.absolute = asolute
+        self.absolute = absolute
         self.normalize = normalize
         self.clip = clip
 
