@@ -392,7 +392,7 @@ class SimplifiedKinematicsObservation(ObservationType):
             origin = self.env.vehicle
             exo_df = exo_df.append(pd.DataFrame.from_records(
                 [v.to_dict(origin, observe_intentions=self.observe_intentions)
-                 for v in close_vehicles[-self.vehicles_count + 1:]])[['x','vx','lane_index']],
+                 for v in close_vehicles])[['x','vx','lane_index']],
                            ignore_index=True)
 
         observation = np.ones((3+2*self.lanes_count,2))
