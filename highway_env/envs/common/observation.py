@@ -401,8 +401,8 @@ class SimplifiedKinematicsObservation(ObservationType):
         observation[2::2,0] = self.features_range['x'][1]
         observation[2::2,1] = self.features_range['vx'][1]
 
-        observation[0,0] = ego['lane_index']
-        observation[0,1] = ego['vx']
+        observation[0,0] = ego_df['lane_index']
+        observation[0,1] = ego_df['vx']
         for exo in exo_df:
             lane = exo_df['lane_index']
             if exo_df['x']<0 and exo_df['x']>observation[lanes_id[lane]][0]:
