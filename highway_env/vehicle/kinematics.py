@@ -243,6 +243,7 @@ class Vehicle(Loggable):
             'sin_h': self.direction[1],
             'cos_d': self.destination_direction[0],
             'sin_d': self.destination_direction[1]
+            'lane_index': self.lane_index
         }
         if not observe_intentions:
             d["cos_d"] = d["sin_d"] = 0
