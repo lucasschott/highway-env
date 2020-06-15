@@ -368,8 +368,8 @@ class SimplifiedKinematicsObservation(ObservationType):
         right_lanes_id = []
         left_lanes_id = []
         for i in range(self.lanes_count):
-            right_lanes_id.append(_id + i)
-            left_lanes_id.append(_id - i)
+            right_lanes_id.append(ego_lane_id + i)
+            left_lanes_id.append(ego_lane_id - i)
         right_to_left_lanes_id = reversed(right_lanes).append(ego_lanes_id).extend(left_lanes)
         lanes_id = dict()
         for i,lane in enumerate(right_to_left_lanes_id):
