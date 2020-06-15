@@ -351,10 +351,10 @@ class SimplifiedKinematicsObservation(ObservationType):
     def space(self) -> spaces.Space:
         return spaces.Box(shape=(3+2*self.lanes_count, len(self.features)), low=-1, high=1, dtype=np.float32)
 
-    def normalize_obs(self, observation: np.nd_array) -> np.nd_array:
+    def normalize_obs(self, observation: np.ndarray) -> np.ndarray:
         """
             Normalize the observation values.
-        :param nd_array observation: observation data
+        :param ndarray observation: observation data
         """
         observation[0,0] = np.map( observation[0,0], self.features_range['lanes'], [0,1])
         observation[1:,0] = np.map( observation[1:,0], self.features_range['x'], [-1,1])
