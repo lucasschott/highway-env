@@ -81,17 +81,18 @@ class Vehicle(Loggable):
         """
         if speed is None:
             speed = road.np_random.uniform(Vehicle.DEFAULT_SPEEDS[0], Vehicle.DEFAULT_SPEEDS[1])
-        default_spacing = 1.5*speed
         _from = road.np_random.choice(list(road.network.graph.keys()))
         _to = road.np_random.choice(list(road.network.graph[_from].keys()))
         _id = road.np_random.choice(len(road.network.graph[_from][_to]))
-        lane = road.network.get_lane((_from, _to, _id))
-        offset = spacing * default_spacing * np.exp(-5 / 30 * len(road.network.graph[_from][_to]))
-        x0 = np.max([lane.local_coordinates(v.position)[0] for v in road.vehicles]) \
-            if len(road.vehicles) else 3*offset
-        x0 += offset * road.np_random.uniform(0.9, 1.1)
-        v = cls(road, lane.position(x0, 0), lane.heading_at(x0), speed)
+        x0 = len(road.vehicles) * spacing if len(road.vehicles) else spacing
+        x0 += road.np_random.uniform(-0.1, 0.1)*spacing
+        v = cls(road,
+                road.network.get_lane((_from, _to, _id)).position(x0, 0),
+                road.network.get_lane((_from, _to, _id)).heading_at(x0),
+                speed)
+        v.index = len(road.vehicles)+1
         return v
+
 
     @classmethod
     def create_from(cls, vehicle: "Vehicle") -> "Vehicle":

@@ -336,64 +336,66 @@ class SimplifiedKinematicsObservation(ObservationType):
         """
         self.env = env
         self.features_range = features_range
-        if features_range is None:
-            side_lanes = self.env.road.network.all_side_lanes(self.env.vehicle.lane_index)
-            self.features_range = {
-                "lane_index": [0, len(side_lanes)],
-                "x": [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX],
-                "vx": [-2*MDPVehicle.SPEED_MAX, 2*MDPVehicle.SPEED_MAX]
-            }
         self.lanes_count = lanes_count
         self.absolute = absolute
         self.normalize = normalize
         self.clip = clip
 
     def space(self) -> spaces.Space:
-        return spaces.Box(shape=(3+2*self.lanes_count,2), low=-1, high=1, dtype=np.float32)
+        return spaces.Box(shape=(2*(3+2*self.lanes_count),), low=-1, high=1, dtype=np.float32)
 
     def normalize_obs(self, observation: np.ndarray) -> np.ndarray:
         """
             Normalize the observation values.
         :param ndarray observation: observation data
         """
-        observation[0,0] = np.map( observation[0,0], self.features_range['lanes'], [0,1])
-        observation[1:,0] = np.map( observation[1:,0], self.features_range['x'], [-1,1])
-        observation[:,1] = np.map( observation[:,1], self.features_range['vx'], [-1,1])
+        if self.features_range is None:
+            side_lanes = self.env.road.network.all_side_lanes(self.env.vehicle.lane_index)
+            self.features_range = {
+                "lane_index": [0, len(side_lanes)-1],
+                "x": [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX],
+                "vx": [-2*MDPVehicle.SPEED_MAX, 2*MDPVehicle.SPEED_MAX]
+            }
+        observation[0,0] = utils.lmap( observation[0,0], self.features_range['lane_index'], [0,1])
+        observation[1:,0] = utils.lmap( observation[1:,0], self.features_range['x'], [-1,1])
+        observation[:,1] = utils.lmap( observation[:,1], self.features_range['vx'], [-1,1])
         observation = np.clip(observation, -1, 1)
         return observation
 
     def observe(self) -> np.ndarray:
+        side_lanes = self.env.road.network.all_side_lanes(self.env.vehicle.lane_index)
+        if self.features_range is None:
+            self.features_range = {
+                "lane_index": [0, len(side_lanes)-1],
+                "x": [-5.0 * MDPVehicle.SPEED_MAX, 5.0 * MDPVehicle.SPEED_MAX],
+                "vx": [-2*MDPVehicle.SPEED_MAX, 2*MDPVehicle.SPEED_MAX]
+            }
+        
+        # Add ego-vehicle
+        ego = self.env.vehicle.to_dict()
 
-        _from, _to, ego_lane_id = self.env.vehicle.target_lane_index
+        ego_lane_id = ego['lane_index'][2]
         right_lanes_id = []
         left_lanes_id = []
-        for i in range(self.lanes_count):
+        for i in range(1,self.lanes_count):
             right_lanes_id.append(ego_lane_id + i)
             left_lanes_id.append(ego_lane_id - i)
-        right_to_left_lanes_id = right_lanes_id
-        right_to_left_lanes_id.reverse()
-        right_to_left_lanes_id.append(ego_lane_id)
-        right_to_left_lanes_id.extend(left_lanes_id)
+        left_to_right_lanes_id = left_lanes_id
+        left_to_right_lanes_id.reverse()
+        left_to_right_lanes_id.append(ego_lane_id)
+        left_to_right_lanes_id.extend(right_lanes_id)
         lanes_id = dict()
-        for i,lane in enumerate(right_to_left_lanes_id):
+        for i,lane in enumerate(left_to_right_lanes_id):
             lanes_id[lane] = 2*i+1
 
         
-        # Add ego-vehicle
-        ego_df = pd.DataFrame.from_records([self.env.vehicle.to_dict()])[['vx', 'lane_index']]
-
         # Add nearby traffic
         close_vehicles = self.env.road.close_vehicles_to(self.env.vehicle,
                                                          self.env.PERCEPTION_DISTANCE,
                                                          count=None,
                                                          see_behind=True)
-        exo_df = pd.DataFrame()
-        if close_vehicles:
-            origin = self.env.vehicle
-            exo_df = exo_df.append(pd.DataFrame.from_records(
-                [v.to_dict(origin, observe_intentions=False)
-                 for v in close_vehicles])[['x','vx','lane_index']],
-                           ignore_index=True)
+        origin = self.env.vehicle
+        exos = [ v.to_dict(origin, observe_intentions=False) for v in close_vehicles ]
 
         observation = np.ones((3+2*self.lanes_count,2))
         observation[1::2,0] = self.features_range['x'][0]
@@ -401,17 +403,26 @@ class SimplifiedKinematicsObservation(ObservationType):
         observation[2::2,0] = self.features_range['x'][1]
         observation[2::2,1] = self.features_range['vx'][1]
 
-        observation[0,0] = ego_df['lane_index']
-        observation[0,1] = ego_df['vx']
-        for exo in exo_df:
-            lane = exo_df['lane_index']
-            if exo_df['x']<0 and exo_df['x']>observation[lanes_id[lane]][0]:
-                observation[lanes_id[lane]+1,0] = exo_df['x']
-                observation[lanes_id[lane]+1,1] = exo_df['vx']
-            elif exo_df['x']>0 and exo_df['x']<observation[lanes_id[lane]+1][0]:
-                observation[lanes_id[lane],0] = exo_df['x']
-                observation[lanes_id[lane],1] = exo_df['vx']
-
+        observation[0,0] = ego['lane_index'][2]
+        observation[0,1] = ego['vx']
+        for exo in exos:
+            lane = exo['lane_index'][2]
+            if lane in left_to_right_lanes_id:
+                if exo['x']<0 and exo['x']>observation[lanes_id[lane],0]:
+                    observation[lanes_id[lane],0] = exo['x']
+                    observation[lanes_id[lane],1] = exo['vx']
+                elif exo['x']>0 and exo['x']<observation[lanes_id[lane]+1,0]:
+                    observation[lanes_id[lane]+1,0] = exo['x']
+                    observation[lanes_id[lane]+1,1] = exo['vx']
+        
+        for lane in left_to_right_lanes_id:
+            if lane < 0:
+                observation[lanes_id[lane]] = observation[lanes_id[0]]
+                observation[lanes_id[lane]+1] = observation[lanes_id[0]+1]
+            if lane >= len(side_lanes):
+                observation[lanes_id[lane]] = observation[lanes_id[len(side_lanes)-1]]
+                observation[lanes_id[lane]+1] = observation[lanes_id[len(side_lanes)-1]+1]
+                
         # Normalize and clip
         if self.normalize:
             observation = self.normalize_obs(observation)
