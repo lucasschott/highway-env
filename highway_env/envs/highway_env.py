@@ -73,7 +73,7 @@ class HighwayEnv(AbstractEnv):
         :return: the corresponding reward
         """
         crash_reward = - self.vehicle.crashed * self.HIGH_SPEED_REWARD
-        speed_reward = self.HIGH_SPEED_REWARD * (self.vehicle.speed_index / (self.vehicle.SPEED_COUNT - 1))**2
+        speed_reward = self.HIGH_SPEED_REWARD * (self.vehicle.speed_index / (self.vehicle.SPEED_COUNT - 1))
         if crash_reward != 0:
             state_reward = crash_reward
         else:

@@ -342,7 +342,7 @@ class SimplifiedKinematicsObservation(ObservationType):
         self.clip = clip
 
     def space(self) -> spaces.Space:
-        return spaces.Box(shape=(2*(3+2*self.lanes_count),), low=-1, high=1, dtype=np.float32)
+        return spaces.Box(shape=(6+8*self.lanes_count,), low=-1, high=1, dtype=np.float32)
 
     def normalize_obs(self, observation: np.ndarray) -> np.ndarray:
         """
@@ -377,7 +377,7 @@ class SimplifiedKinematicsObservation(ObservationType):
         ego_lane_id = ego['lane_index'][2]
         right_lanes_id = []
         left_lanes_id = []
-        for i in range(1,self.lanes_count):
+        for i in range(1,self.lanes_count+1):
             right_lanes_id.append(ego_lane_id + i)
             left_lanes_id.append(ego_lane_id - i)
         left_to_right_lanes_id = left_lanes_id
@@ -397,7 +397,7 @@ class SimplifiedKinematicsObservation(ObservationType):
         origin = self.env.vehicle
         exos = [ v.to_dict(origin, observe_intentions=False) for v in close_vehicles ]
 
-        observation = np.ones((3+2*self.lanes_count,2))
+        observation = np.ones((3+4*self.lanes_count,2))
         observation[1::2,0] = self.features_range['x'][0]
         observation[1::2,1] = self.features_range['vx'][0]
         observation[2::2,0] = self.features_range['x'][1]
