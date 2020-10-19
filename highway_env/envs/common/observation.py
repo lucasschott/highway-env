@@ -361,6 +361,12 @@ class SimplifiedKinematicsObservation(ObservationType):
         observation[:,1] = utils.lmap( observation[:,1], self.features_range['vx'], [-1,1])
         observation = np.clip(observation, -1, 1)
         return observation
+    
+    def truncated_normal(mu,sigma):
+        x = 3*sigma
+        while x >= 2*sigma or x <= 2*sigma:
+            x = np.random.normal(mu,sigma)
+        return x
 
     def observe(self) -> np.ndarray:
         side_lanes = self.env.road.network.all_side_lanes(self.env.vehicle.lane_index)
@@ -398,10 +404,11 @@ class SimplifiedKinematicsObservation(ObservationType):
         exos = [ v.to_dict(origin, observe_intentions=False) for v in close_vehicles ]
 
         observation = np.ones((3+4*self.lanes_count,2))
-        observation[1::2,0] = self.features_range['x'][0]
-        observation[1::2,1] = self.features_range['vx'][0]
-        observation[2::2,0] = self.features_range['x'][1]
-        observation[2::2,1] = self.features_range['vx'][1]
+
+        observation[1::2,0] = truncated_normal(self.features_range['x'][0]*0.8,0.1)
+        observation[1::2,1] = truncated_normal(self.features_range['vx'][0]*0.5,0.1)
+        observation[2::2,0] = truncated_normal(self.features_range['x'][1]*0.8,0.1)
+        observation[2::2,1] = truncated_normal(self.features_range['vx'][1]*0.5,0.1)
 
         observation[0,0] = ego['lane_index'][2]
         observation[0,1] = ego['vx']
